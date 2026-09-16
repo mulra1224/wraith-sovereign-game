@@ -24,17 +24,15 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.3
-      env:
-        HOME: /root
 
     steps:
       - uses: actions/checkout@v4
       - name: Import project
-        run: godot --headless --editor --quit-after 3
+        run: HOME=/root godot --headless --editor --quit-after 3
       - name: Export debug APK
         run: |
           mkdir -p build/android
-          godot --headless --verbose --export-debug "Android" build/android/wraith-sovereign-debug.apk
+          HOME=/root godot --headless --verbose --export-debug "Android" build/android/wraith-sovereign-debug.apk
       - name: Audit APK permissions, signature and integrity
         run: bash tests/apk_security_audit.sh build/android/wraith-sovereign-debug.apk
       - uses: actions/upload-artifact@v4
