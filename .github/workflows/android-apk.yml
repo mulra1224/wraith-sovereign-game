@@ -1,0 +1,38 @@
+name: Build verified Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate project structure
+        run: python tests/validate_project.py
+
+  android:
+    needs: validate
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import and parse project
+        run: godot --headless --editor --quit-after 3
+      - name: Export debug APK
+        run: |
+          mkdir -p build/android
+          godot --headless --export-debug "Android" build/android/wraith-sovereign.apk
+      - name: Verify APK exists
+        run: test -s build/android/wraith-sovereign.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wraith-sovereign-android-debug
+          path: build/android/wraith-sovereign.apk
+          if-no-files-found: error
