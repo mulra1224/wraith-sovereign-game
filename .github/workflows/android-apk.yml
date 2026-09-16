@@ -1,9 +1,12 @@
-name: Build verified Android APK
+name: Build verified Android debug APK
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   validate:
@@ -26,20 +29,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - name: Import project
-        run: HOME=/root godot --headless --editor --quit-after 3
-
-      - name: Export Android APK
+        run: godot --headless --editor --quit-after 3
+      - name: Export debug APK
         run: |
           mkdir -p build/android
-          HOME=/root godot --headless --verbose --export-debug "Android" build/android/wraith-sovereign.apk
-          
-      - name: Verify APK
-        run: test -s build/android/wraith-sovereign.apk
-
+          godot --headless --verbose --export-debug "Android" build/android/wraith-sovereign-debug.apk
+      - name: Audit APK permissions, signature and integrity
+        run: bash tests/apk_security_audit.sh build/android/wraith-sovereign-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: wraith-sovereign-android-debug
-          path: build/android/wraith-sovereign.apk
+          path: |
+            build/android/wraith-sovereign-debug.apk
+            apk-signature.txt
+            apk-sha256.txt
           if-no-files-found: error

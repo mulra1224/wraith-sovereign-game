@@ -1,0 +1,70 @@
+name: Build signed Android release APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+      env:
+        HOME: /root
+        RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+        RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        RELEASE_CERT_SHA256: ${{ secrets.RELEASE_CERT_SHA256 }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require release signing secrets
+        run: |
+          test -n "$RELEASE_KEYSTORE_BASE64"
+          test -n "$RELEASE_KEYSTORE_PASSWORD"
+          test -n "$RELEASE_KEY_ALIAS"
+          test -n "$RELEASE_KEY_PASSWORD"
+          test -n "$RELEASE_CERT_SHA256"
+      - name: Restore release keystore
+        run: |
+          mkdir -p "$RUNNER_TEMP/signing"
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/signing/wraith-release.keystore"
+          chmod 600 "$RUNNER_TEMP/signing/wraith-release.keystore"
+      - name: Inject signing configuration
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          path = Path("export_presets.cfg")
+          text = path.read_text()
+          anchor = 'package/signed=true\n'
+          values = (
+              f'keystore/release="{os.environ["RUNNER_TEMP"]}/signing/wraith-release.keystore"\n'
+              f'keystore/release_user="{os.environ["RELEASE_KEY_ALIAS"]}"\n'
+              f'keystore/release_password="{os.environ["RELEASE_KEY_PASSWORD"]}"\n'
+          )
+          if anchor not in text:
+              raise SystemExit("signed package anchor missing")
+          path.write_text(text.replace(anchor, anchor + values, 1))
+          PY
+      - name: Import and validate project
+        run: |
+          python tests/validate_project.py
+          godot --headless --editor --quit-after 3
+      - name: Export signed release APK
+        run: |
+          mkdir -p build/android
+          godot --headless --verbose --export-release "Android" build/android/wraith-sovereign-release.apk
+      - name: Audit release APK
+        run: bash tests/apk_security_audit.sh build/android/wraith-sovereign-release.apk "$RELEASE_CERT_SHA256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wraith-sovereign-android-release
+          path: |
+            build/android/wraith-sovereign-release.apk
+            apk-signature.txt
+            apk-sha256.txt
+          if-no-files-found: error
