@@ -132,7 +132,7 @@ func _update_player_combat() -> void:
     if attack_cooldown <= 0.0:
         var speed := 0.34 if player.transformed else 0.48
         attack_cooldown = speed
-        var damage := randi_range(8, 13) + player.level * 2 + player.weapon * 3
+        var damage: int = randi_range(8, 13) + int(player.level) * 2 + int(player.weapon) * 3
         if randf() < 0.13:
             damage *= 2
             _say("치명타! %d 피해" % damage)
@@ -279,7 +279,7 @@ func _use_potion() -> void:
     _say("체력 회복 물약을 사용했습니다.")
 
 func _upgrade_weapon() -> void:
-    var cost := 30 + player.weapon * 25
+    var cost: int = 30 + int(player.weapon) * 25
     if player.gold < cost:
         _say("강화에 황혼 주화 %d개가 필요합니다." % cost)
         return
