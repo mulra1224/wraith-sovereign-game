@@ -28,13 +28,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Import project
-        run: godot --headless --editor --quit-after 3
+        run: HOME=/root godot --headless --editor --quit-after 3
 
       - name: Export Android APK
         run: |
           mkdir -p build/android
-          godot --headless --verbose --export-debug "Android" build/android/wraith-sovereign.apk
-
+          HOME=/root godot --headless --verbose --export-debug "Android" build/android/wraith-sovereign.apk
+          
       - name: Verify APK
         run: test -s build/android/wraith-sovereign.apk
 
